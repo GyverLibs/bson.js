@@ -1,0 +1,14 @@
+{
+  "name": "@alexgyver/bson",
+  "version": "1.0.0",
+  "description": "Decode BSON from GSON Arduino library",
+  "main": "./bson.js",
+  "module": "./bson.js",
+  "types": "./bson.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/GyverLibs/bson.js.git"
+  },
+  "author": "AlexGyver <alex@alexgyver.ru>",
+  "license": "MIT"
+}
