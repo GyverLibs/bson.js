@@ -1,4 +1,4 @@
 # bson.js
-Распаковщик бинарного JSON ил библиотеки [GSON](https://github.com/GyverLibs/GSON).
+Распаковщик бинарного JSON для библиотеки [BSON](https://github.com/GyverLibs/BSON).
 
 > npm i @alexgyver/bson
