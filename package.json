@@ -1,7 +1,7 @@
 {
   "name": "@alexgyver/bson",
-  "version": "1.0.0",
-  "description": "Decode BSON from GSON Arduino library",
+  "version": "1.0.1",
+  "description": "Decode BSON from BSON Arduino library",
   "main": "./bson.js",
   "module": "./bson.js",
   "types": "./bson.js",

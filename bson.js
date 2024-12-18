@@ -18,6 +18,9 @@ export default function decodeBson(b, codes = []) {
     const BS_BINARY = (7 << 5);
     const BS_BIN_PREFIX = "__BSON_BINARY";
 
+    const BS_NEGATIVE = (1 << 4);
+    const BS_BOOLEAN = (1 << 3);
+
     const BS_CONT_OBJ = (1 << 4);
     const BS_CONT_OPEN = (1 << 3);
 
@@ -76,13 +79,17 @@ export default function decodeBson(b, codes = []) {
             } break;
 
             case BS_VAL_INT: {
-                if (data & 0b10000) s += '-';
-                let len = data & 0b01111;
-                let v = BigInt(0);
-                for (let j = 0; j < len; j++) {
-                    v |= BigInt(b[++i]) << BigInt(j * 8);
+                if (data & BS_BOOLEAN) {
+                    s += (data & 0b1) ? 'true' : 'false';
+                } else {
+                    if (data & BS_NEGATIVE) s += '-';
+                    let len = data & 0b111;
+                    let v = BigInt(0);
+                    for (let j = 0; j < len; j++) {
+                        v |= BigInt(b[++i]) << BigInt(j * 8);
+                    }
+                    s += v;
                 }
-                s += v;
                 s += ',';
             } break;
 
