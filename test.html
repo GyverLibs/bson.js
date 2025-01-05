@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+
+<body>
+    <button id="req">REQUEST</button>
+    <p id="out" style="white-space: break-spaces;"></p>
+
+    <script type="module">
+        import decodeBson from '/bson.js';
+
+        const url = 'http://192.168.1.54';
+
+        const codes = [
+            'some',
+            'string',
+            'constants',
+        ];
+
+        req.onclick = async () => {
+            let res = await fetch(url + '/bson');
+            try {
+                let arr = new Uint8Array(await res.arrayBuffer());
+                let json = decodeBson(arr, codes);
+                console.log(arr);
+                console.log(JSON.stringify(json), JSON.stringify(json).length);
+                console.log(json);
+                out.innerText = JSON.stringify(json, null, 2);
+            } catch (e) {
+                console.log(e);
+                out.innerText = e;
+            }
+        }
+    </script>
+</body>
+
+</html>

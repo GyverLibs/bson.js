@@ -66,25 +66,23 @@ export default function decodeBson(b, codes = []) {
 
                 case BS_STRING: {
                     let len = unpack5(data, b[++i]);
-                    i++;
-                    let txt = new TextDecoder().decode(b.slice(i, i + len));
+                    let txt = new TextDecoder().decode(b.slice(i + 1, i + 1 + len));
                     txt = txt.replaceAll(/([^\\])\\([^\"\\nrt])/ig, "$1\\\\$2")
                         .replaceAll(/\t/ig, "\\t")
                         .replaceAll(/\n/ig, "\\n")
                         .replaceAll(/\r/ig, "\\r")
                         .replaceAll(/([^\\])(")/ig, '$1\\"');
                     s += '"' + txt + '"';
-                    i += len - 1;
+                    i += len;
                 } break;
 
                 case BS_INTEGER: {
                     if (data & BS_NEGATIVE) s += '-';
                     let len = data & 0b1111;
-                    let v = BigInt(0);
-                    for (let j = 0; j < len; j++) {
-                        v |= BigInt(b[++i]) << BigInt(j * 8);
-                    }
-                    s += v;
+                    let u8 = new Uint8Array(8);
+                    u8.set(b.slice(i + 1, i + 1 + len));
+                    s += new BigUint64Array(u8.buffer)[0];
+                    i += len;
                 } break;
 
                 case BS_BOOLEAN:
@@ -92,12 +90,9 @@ export default function decodeBson(b, codes = []) {
                     break;
 
                 case BS_FLOAT: {
-                    let v = 0;
-                    for (let j = 0; j < 4; j++) {
-                        v |= b[++i] << (j * 8);
-                    }
-                    let f = new Float32Array(new Uint32Array([v]).buffer)[0];
+                    let f = new Float32Array(b.slice(i + 1, i + 1 + 4).buffer)[0];
                     s += (isNaN(f) || !isFinite(f)) ? 'null' : f.toFixed(data);
+                    i += 4;
                 } break;
 
                 case BS_BINARY: {
@@ -118,7 +113,7 @@ export default function decodeBson(b, codes = []) {
             }
         }
     } catch (e) {
-        console.log(s);
+        console.log(e, s);
         throw new Error("BSON decode error");
     }
 
@@ -129,7 +124,7 @@ export default function decodeBson(b, codes = []) {
         if (bins.length) makeBins(obj, bins);
         return obj;
     } catch (e) {
-        console.log(s);
+        console.log(e, s);
         throw new Error("JSON parse error");
     }
 }
