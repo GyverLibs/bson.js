@@ -5,9 +5,16 @@
   "main": "./bson.js",
   "module": "./bson.js",
   "types": "./bson.js",
+  "scripts": {
+    "build": "webpack --config ./webpack.config.js"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/GyverLibs/bson.js.git"
+  },
+  "devDependencies": {
+    "webpack": "^5.98.0",
+    "webpack-cli": "^6.0.1"
   },
   "author": "AlexGyver <alex@alexgyver.ru>",
   "license": "MIT"
