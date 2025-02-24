@@ -1,10 +1,8 @@
-var path = require('path');
-
 module.exports = {
     entry: './bson.js',
     output: {
-        path: path.resolve(__dirname, 'dist'),
-        filename: 'bson.js',
+        path: __dirname,
+        filename: 'bson.min.js',
         library: {
             type: 'module'
         }
