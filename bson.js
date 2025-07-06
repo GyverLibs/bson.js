@@ -66,13 +66,7 @@ export default function decodeBson(b, codes = []) {
 
                 case BS_STRING: {
                     let len = unpack5(data, b[++i]);
-                    let txt = new TextDecoder().decode(b.slice(i + 1, i + 1 + len));
-                    txt = txt.replaceAll(/([^\\])\\([^\"\\nrt])/ig, "$1\\\\$2")
-                        .replaceAll(/\t/ig, "\\t")
-                        .replaceAll(/\n/ig, "\\n")
-                        .replaceAll(/\r/ig, "\\r")
-                        .replaceAll(/([^\\])(")/ig, '$1\\"');
-                    s += '"' + txt + '"';
+                    s += JSON.stringify(new TextDecoder().decode(b.slice(i + 1, i + 1 + len)));
                     i += len;
                 } break;
 
@@ -113,7 +107,7 @@ export default function decodeBson(b, codes = []) {
             }
         }
     } catch (e) {
-        console.log(e, s);
+        console.error(e, s);
         throw new Error("BSON decode error");
     }
 
@@ -124,7 +118,7 @@ export default function decodeBson(b, codes = []) {
         if (bins.length) makeBins(obj, bins);
         return obj;
     } catch (e) {
-        console.log(e, s);
+        console.error(e, s);
         throw new Error("JSON parse error");
     }
 }
