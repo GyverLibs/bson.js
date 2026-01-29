@@ -1,5 +1,5 @@
 # bson.js
-Распаковщик бинарного JSON для библиотеки [BSON](https://github.com/GyverLibs/BSON).
+Распаковщик и запаковщик бинарного JSON для библиотеки [BSON](https://github.com/GyverLibs/BSON).
 
 > npm i @alexgyver/bson
 
@@ -10,10 +10,26 @@ const codes = [
     'constants',
 ];
 
-let json;
-const res = await fetch(...);
+let test = {
+    int: 123,
+    float: 3.14,
+    arr: [
+        "str",
+        true,
+        1234,
+        new Uint8Array([1, 2, 3]),
+    ],
+    obj: {
+        str2: "str2",
+        true: true,
+    },
+    str3: "str3",
+    nul: null,
+    [getCode('constants', codes)]: getCode('string', codes),
+    bins: new Uint8Array([1, 2, 3]),
+};
 
-try {
-    json = decodeBson(new Uint8Array(await res.arrayBuffer()), codes);
-} catch (e) { }
+let enc = encodeBson(test);
+let json = decodeBson(enc, codes);
+console.log(json);
 ```

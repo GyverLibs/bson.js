@@ -5,7 +5,8 @@
     <p id="out" style="white-space: break-spaces;"></p>
 
     <script type="module">
-        import decodeBson from 'https://gyverlibs.github.io/bson.js/dist/bson.js';
+        import { decodeBson, encodeBson, getCode } from 'https://gyverlibs.github.io/bson.js/dist/bson.js';
+        // import { decodeBson, encodeBson, getCode } from '/bson.js';
 
         const url = 'http://192.168.1.54';
 
@@ -15,6 +16,32 @@
             'constants',
         ];
 
+        // =========== encode ===========
+        let test = {
+            int: 123,
+            float: 3.14,
+            arr: [
+                "str",
+                true,
+                1234,
+                new Uint8Array([1, 2, 3]),
+            ],
+            obj: {
+                str2: "str2",
+                true: true,
+            },
+            str3: "str3",
+            nul: null,
+            [getCode('constants1')]: getCode('string1'),
+            [getCode('constants')]: getCode('string'),
+            bins: new Uint8Array([1, 2, 3]),
+        };
+
+        let enc = encodeBson(test, codes);
+        let json = decodeBson(enc, codes);
+        console.log(json);
+
+        // =========== request ===========
         req.onclick = async () => {
             let res = await fetch(url + '/bson');
             try {
