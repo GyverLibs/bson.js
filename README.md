@@ -1,7 +1,11 @@
 # bson.js
 Распаковщик и запаковщик бинарного JSON для библиотеки [BSON](https://github.com/GyverLibs/BSON).
 
-> npm i @alexgyver/bson
+[demo](https://gyverlibs.github.io/bson.js/test/)
+
+> **Browser**: https://gyverlibs.github.io/bson.js/bson.min.js
+
+> **Node**: npm i @alexgyver/bson
 
 ```js
 const codes = [
