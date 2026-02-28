@@ -28,126 +28,113 @@ const BS_SIZE_MASK = 0b01111;
 const BS_SIZE = x => x & BS_SIZE_MASK;
 
 const BS_FLOAT_SIZE = 4;
-const BS_DEC_MASK = 0b1111;
-const BS_DECIMAL = x => x & BS_DEC_MASK;
 
 const BS_D16_MSB = x => (x >> 8) & BS_DATA_MASK;
 const BS_D16_LSB = x => x & 0xff;
 const BS_D16_MERGE = (msb5, lsb) => ((msb5 << 8) | lsb) >>> 0;
 
-const BS_BIN_PREFIX = "__BSON_BIN_";
-const BS_CODE_PREFIX = "__BSON_CODE_";
+const BS_CODE_PREFIX = "__BS#";
 
 /**
  * @param {Uint8Array} b
  * @param {Array} codes
- * @returns {Object}
+ * @returns {Object|Array|*}
  */
-export function decodeBson(b, codes = []) {
-    if (!b || !(b instanceof Uint8Array)) return null;
-    if (!b.length) return {};
+export function decodeBson(buf, codes = []) {
+    if (!(buf instanceof Uint8Array)) return undefined;
 
-    let bins = [];
-    let stack = [];
-    let keyf = true;
-    let s = '';
-
-    try {
-        for (let i = 0; i < b.length; i++) {
-            const type = BS_TYPE(b[i]);
-            const data = BS_DATA(b[i]);
-
-            switch (type) {
-
-                case BS_CONTAINER:
-                    if (data & BS_CONT_OPEN) {
-                        let t = (data & BS_CONT_OBJ) ? '{' : '[';
-                        s += t;
-                        stack.push(t);
-                    } else {
-                        if (s[s.length - 1] == ',') s = s.slice(0, -1);
-                        let t = (data & BS_CONT_OBJ) ? '}' : ']';
-                        s += t + ',';
-                        stack.pop();
-                    }
-                    keyf = true;
-                    continue;
-
-                case BS_CODE:
-                    s += '"' + codes[BS_D16_MERGE(data, b[++i])] + '"';
-                    break;
-
-                case BS_STRING: {
-                    let len = BS_D16_MERGE(data, b[++i]);
-                    s += JSON.stringify(new TextDecoder().decode(b.slice(i + 1, i + 1 + len)));
-                    i += len;
-                } break;
-
-                case BS_INTEGER: {
-                    if (BS_NEGATIVE(data)) s += '-';
-                    let len = BS_SIZE(data);
-                    let u8 = new Uint8Array(8);
-                    u8.set(b.slice(i + 1, i + 1 + len));
-                    s += new BigUint64Array(u8.buffer)[0];
-                    i += len;
-                } break;
-
-                case BS_BOOLEAN:
-                    s += BS_BOOLV(data) ? 'true' : 'false';
-                    break;
-
-                case BS_NULL:
-                    s += 'null';
-                    break;
-
-                case BS_FLOAT: {
-                    let f = new DataView(b.buffer, b.byteOffset + i + 1, BS_FLOAT_SIZE).getFloat32(0, true);
-                    s += (isNaN(f) || !isFinite(f)) ? 'null' : f.toFixed(BS_DECIMAL(data));
-                    i += BS_FLOAT_SIZE;
-
-                } break;
-
-                case BS_BINARY: {
-                    let len = BS_D16_MERGE(data, b[++i]);
-                    i++;
-                    s += '"' + BS_BIN_PREFIX + bins.length + '"';
-                    bins.push(b.slice(i, i + len));
-                    i += len - 1;
-                } break;
-
+    const reader = {
+        buf,
+        offset: 0,
+        decoder: new TextDecoder(),
+        read(len) {
+            if (this.offset + len > buf.length) {
+                throw new Error("Overflow");
             }
-
-            if (stack[stack.length - 1] === '{') {
-                s += keyf ? ':' : ',';
-                keyf = !keyf;
-            } else {
-                s += ',';
-            }
+            const res = this.buf.subarray(this.offset, this.offset + len);
+            this.offset += len;
+            return res;
+        },
+        readB() {
+            return this.read(1)[0];
         }
-    } catch (e) {
-        console.error(e, s);
-        throw new Error("BSON decode error");
-    }
+    };
 
-    if (s[s.length - 1] == ',') s = s.slice(0, -1);
-
-    try {
-        let obj = JSON.parse(s);
-        if (bins.length) _makeBins(obj, bins);
-        return obj;
-    } catch (e) {
-        console.error(e, s);
-        throw new Error("JSON parse error");
-    }
+    return _decode(reader, codes);
 }
 
-function _makeBins(obj, bins) {
-    if (typeof obj !== 'object') return;
-    for (let k in obj) {
-        if (typeof obj[k] === "object" && obj[k] !== null) {
-            _makeBins(obj[k], bins);
-        } else if (typeof obj[k] === "string" && obj[k].startsWith(BS_BIN_PREFIX)) {
-            obj[k] = bins[obj[k].slice(BS_BIN_PREFIX.length)];
+function _decode(r, codes) {
+    const header = r.readB();
+    const data = BS_DATA(header);
+
+    switch (BS_TYPE(header)) {
+        case BS_CONTAINER:
+            if (data & BS_CONT_OPEN) {
+                let isArr = !!(data & BS_CONT_ARR);
+                let cont = isArr ? [] : {};
+                let expect = false;
+                let key;
+
+                while (true) {
+                    let res = _decode(r, codes);
+
+                    if (res && res.__close !== undefined) {
+                        if (isArr === res.__close) {
+                            if (!isArr && expect) throw new Error("Missed value: " + JSON.stringify(cont));
+                            return cont;
+                        } else {
+                            throw new Error("Wrong close: " + JSON.stringify(cont));
+                        }
+                    }
+
+                    if (isArr) {
+                        cont.push(res);
+                    } else {
+                        if (expect) cont[key] = res;
+                        else key = res;
+                        expect = !expect;
+                    }
+                }
+            } else if (data & BS_CONT_CLOSE) {
+                return { __close: !!(data & BS_CONT_ARR) };
+            } else {
+                throw new Error("Unknown cont: " + JSON.stringify(cont));
+            }
+
+        case BS_CODE:
+            return codes[BS_D16_MERGE(data, r.readB())];
+
+        case BS_STRING: {
+            let len = BS_D16_MERGE(data, r.readB());
+            return r.decoder.decode(r.read(len));
+        }
+
+        case BS_INTEGER: {
+            let size = BS_SIZE(data);
+            if (!size) return 0;
+
+            let value = 0n;
+            const bytes = r.read(size);
+            while (size--) value = (value << 8n) | BigInt(bytes[size]);
+
+            if (BS_NEGATIVE(data)) value = -value;
+            return (value >= Number.MIN_SAFE_INTEGER && value <= Number.MAX_SAFE_INTEGER) ? Number(value) : value;
+        }
+
+        case BS_BOOLEAN:
+            return !!BS_BOOLV(data);
+
+        case BS_NULL:
+            return null;
+
+        case BS_FLOAT: {
+            const b = r.read(4);
+            return new DataView(b.buffer, b.byteOffset, 4).getFloat32(0, true);
+        }
+
+        case BS_BINARY: {
+            let len = BS_D16_MERGE(data, r.readB());
+            return r.read(len).slice();
         }
     }
 }
@@ -205,7 +192,7 @@ function _encode(val, arr, codes) {
             } else {
                 const buffer = new ArrayBuffer(BS_FLOAT_SIZE);
                 new DataView(buffer).setFloat32(0, val, true);
-                arr.push(BS_FLOAT | 4);
+                arr.push(BS_FLOAT);
                 arr.push(...new Uint8Array(buffer));
             }
             break;
@@ -230,7 +217,7 @@ function _encode(val, arr, codes) {
             break;
 
         case 'boolean':
-            arr.push(BS_BOOLEAN | (val ? 1 : 0));
+            arr.push(BS_BOOLEAN | !!val);
             break;
 
         default:

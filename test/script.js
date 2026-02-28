@@ -1,5 +1,5 @@
-import { decodeBson, encodeBson, getCode } from 'https://gyverlibs.github.io/bson.js/bson.js';
-// import { decodeBson, encodeBson, getCode } from '../bson.js';
+// import { decodeBson, encodeBson, getCode } from 'https://gyverlibs.github.io/bson.js/bson.js';
+import { decodeBson, encodeBson, getCode } from '../bson.js';
 
 const url = 'http://192.168.1.54';
 
