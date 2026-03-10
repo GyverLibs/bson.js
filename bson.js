@@ -100,6 +100,7 @@ function _decode(r, codes) {
             } else {
                 throw new Error("Unknown cont: " + JSON.stringify(cont));
             }
+        // break;
 
         case BS_CODE:
             return codes[BS_D16_MERGE(data, r.readB())];
