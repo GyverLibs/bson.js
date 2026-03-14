@@ -5,8 +5,8 @@
     <p id="out" style="white-space: break-spaces;"></p>
 
     <script type="module">
-        // import { decodeBson, encodeBson, getCode } from 'https://gyverlibs.github.io/bson.js/dist/bson.js';
-        import { decodeBson, encodeBson, getCode } from '/bson.js';
+        import { decodeBson, encodeBson, getCode } from 'https://gyverlibs.github.io/bson.js/dist/bson.js';
+        // import { decodeBson, encodeBson, getCode } from '/bson.js';
 
         const url = 'http://192.168.1.54';
 
@@ -26,7 +26,8 @@
                 "str",
                 "0123456789012345678901234567890123456789",
                 true,
-                1234,
+                123456789876543,
+                -123456789876543,
                 new Uint8Array([1, 2, 3]),
                 new Uint8Array([]),
             ],

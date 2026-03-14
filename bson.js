@@ -73,10 +73,10 @@ export class BSDecoder {
         return this.read(1)[0];
     }
     readInt(len) {
-        let val = 0;
+        let val = 0n;
         let bytes = this.read(len);
-        while (len--) val = (val << 8) | bytes[len];
-        return val;
+        while (len--) val = (val << 8n) | BigInt(bytes[len]);
+        return Number(val);
     }
     _ext(hdr) {
         return BS_GET_LSB(hdr) | ((hdr & BS_EXT_FLAG) ? (this.readB() << BS_EXT_BITS) : 0);
@@ -195,6 +195,7 @@ export class BSEncoder {
                     break;
 
                 case 'number':
+                case 'bigint':
                     if (Number.isInteger(val)) {
                         if (val >= 0 && val < BS_INT_SMALL) {
                             a.push(BS_INT | BS_INT_SMALL | val);
@@ -242,9 +243,10 @@ export class BSEncoder {
 
     _int(v) {
         let t = [];
+        v = BigInt(v);
         while (v) {
-            t.push(v & 0xFF);
-            v >>= 8;
+            t.push(Number(v & 0xFFn));
+            v >>= 8n;
         }
         return t;
     }
