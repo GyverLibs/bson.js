@@ -37,8 +37,8 @@ const BS_CONT_CLOSE = 0 << 1;
 const BS_CONT_OPEN = 1 << 1;
 
 // subtype float
-const BS_GET_FLOAT_LEN = x => 1 << ((x) & 0b111);
-const BS_FLOAT_F32 = 2;
+const BS_FLOAT_ZERO = 1;
+const BS_FLOAT_SIZE = 4;
 
 // subtype bin
 const BS_GET_BIN_LEN = x => x & 0b111;
@@ -54,6 +54,9 @@ export class BSDecoder {
         this.codes = codes;
     }
 
+    /**
+     * @returns {Object}
+     */
     decode() {
         if (!(this.buf instanceof Uint8Array) || !this.buf.length) return undefined;
 
@@ -76,7 +79,7 @@ export class BSDecoder {
         let val = 0n;
         let bytes = this.read(len);
         while (len--) val = (val << 8n) | BigInt(bytes[len]);
-        return Number(val);
+        return val <= Number.MAX_SAFE_INTEGER ? Number(val) : val;
     }
     _ext(hdr) {
         return BS_GET_LSB(hdr) | ((hdr & BS_EXT_FLAG) ? (this.readB() << BS_EXT_BITS) : 0);
@@ -141,12 +144,12 @@ export class BSDecoder {
             case BS_BOOL:
                 return !!(header & 1);
 
-            case BS_FLOAT: {
-                let len = BS_GET_FLOAT_LEN(header);
-                const b = this.read(len);
-                let view = new DataView(b.buffer, b.byteOffset, len);
-                return (len == 4) ? view.getFloat32(0, true) : ((len == 8) ? view.getFloat64(0, true) : 0);
-            }
+            case BS_FLOAT:
+                if (header & BS_FLOAT_ZERO) return 0.0;
+                else {
+                    const b = this.read(BS_FLOAT_SIZE);
+                    return new DataView(b.buffer, b.byteOffset, BS_FLOAT_SIZE).getFloat32(0, true);
+                }
 
             case BS_BIN:
                 return this.read(this.readInt(BS_GET_BIN_LEN(header))).slice();
@@ -163,10 +166,24 @@ export class BSEncoder {
         this.codes = codes;
     }
 
+    /**
+     * @returns {Uint8Array}
+     */
     getArray() {
         return Uint8Array.from(this.arr);
     }
 
+    /**
+     * @returns {Uint8Array}
+     */
+    encodeSingle(val) {
+        return this.encode(val).getArray();
+    }
+
+    /**
+     * @param {*} val 
+     * @returns {BSEncoder}
+     */
     encode(val) {
         let a = this.arr;
 
@@ -186,16 +203,18 @@ export class BSEncoder {
                         a.push(...val);
                     } else {
                         a.push(BS_SUBT | BS_CONT | BS_CONT_OBJ | BS_CONT_OPEN);
-                        for (const [key, value] of Object.entries(val)) {
+                        for (let key in val) {
                             this.encode(key);
-                            this.encode(value);
+                            this.encode(val[key]);
                         }
                         a.push(BS_SUBT | BS_CONT | BS_CONT_OBJ | BS_CONT_CLOSE);
                     }
                     break;
 
-                case 'number':
                 case 'bigint':
+                    val = Number(val);
+
+                case 'number':
                     if (Number.isInteger(val)) {
                         if (val >= 0 && val < BS_INT_SMALL) {
                             a.push(BS_INT | BS_INT_SMALL | val);
@@ -207,9 +226,10 @@ export class BSEncoder {
                             a.push(...bytes);
                         }
                     } else {
-                        const buffer = new ArrayBuffer(4);
+                        // 0.0 is integer
+                        const buffer = new ArrayBuffer(BS_FLOAT_SIZE);
                         new DataView(buffer).setFloat32(0, val, true);
-                        a.push(BS_SUBT | BS_FLOAT | BS_FLOAT_F32);
+                        a.push(BS_SUBT | BS_FLOAT);
                         a.push(...new Uint8Array(buffer));
                     }
                     break;
@@ -279,9 +299,9 @@ export function decodeBson(buf, codes = []) {
  * @returns {Uint8Array}
  */
 export function encodeBson(val, codes = []) {
-    return new BSEncoder(codes).encode(val).getArray();
+    return new BSEncoder(codes).encodeSingle(val);
 }
 
-export function getCode(name) {
+export function BSCode(name) {
     return BS_CODE_PREFIX + name;
 }

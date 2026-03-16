@@ -29,7 +29,7 @@ let test = {
     },
     str3: "str3",
     nul: null,
-    [getCode('constants', codes)]: getCode('string', codes),
+    [BSCode('constants', codes)]: BSCode('string', codes),
     bins: new Uint8Array([1, 2, 3]),
 };
 

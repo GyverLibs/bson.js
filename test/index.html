@@ -5,8 +5,8 @@
     <p id="out" style="white-space: break-spaces;"></p>
 
     <script type="module">
-        import { decodeBson, encodeBson, getCode } from 'https://gyverlibs.github.io/bson.js/dist/bson.js';
-        // import { decodeBson, encodeBson, getCode } from '/bson.js';
+        import { decodeBson, encodeBson, BSCode } from 'https://gyverlibs.github.io/bson.js/dist/bson.js';
+        // import { decodeBson, encodeBson, BSCode } from '/bson.js';
 
         const url = 'http://192.168.1.54';
 
@@ -18,10 +18,12 @@
 
         // =========== encode ===========
         let test = {
-            sint: 20,
+            sint: 20n,
+            bint: 2000n,
             int: 123,
             nint: -123,
             float: 3.14,
+            float0: 0.0,
             arr: [
                 "str",
                 "0123456789012345678901234567890123456789",
@@ -37,8 +39,8 @@
             },
             str3: "str3",
             nul: null,
-            [getCode('constants1')]: getCode('string1'),
-            [getCode('constants')]: getCode('string'),
+            [BSCode('constants1')]: BSCode('string1'),
+            [BSCode('constants')]: BSCode('string'),
             bins: new Uint8Array([1, 2, 3]),
         };
 
