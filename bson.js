@@ -36,8 +36,12 @@ const BS_CONT_OBJ = 1 << 0;
 const BS_CONT_CLOSE = 0 << 1;
 const BS_CONT_OPEN = 1 << 1;
 
+const BS_ARR_OPEN = BS_SUBT | BS_CONT | BS_CONT_ARR | BS_CONT_OPEN;
+const BS_ARR_CLOSE = BS_SUBT | BS_CONT | BS_CONT_ARR | BS_CONT_CLOSE;
+const BS_OBJ_OPEN = BS_SUBT | BS_CONT | BS_CONT_OBJ | BS_CONT_OPEN;
+const BS_OBJ_CLOSE = BS_SUBT | BS_CONT | BS_CONT_OBJ | BS_CONT_CLOSE;
+
 // subtype float
-const BS_FLOAT_ZERO = 1;
 const BS_FLOAT_SIZE = 4;
 
 // subtype bin
@@ -54,6 +58,13 @@ export class BSDecoder {
         this.codes = codes;
     }
 
+    wrapObject() {
+        this._wrap(true);
+    }
+    wrapArray() {
+        this._wrap(false);
+    }
+
     /**
      * @returns {Object}
      */
@@ -64,6 +75,7 @@ export class BSDecoder {
         if (this.offset != this.buf.length) throw this._err("Broken packet");
         return res;
     }
+
     read(len) {
         if (this.offset + len > this.buf.length) {
             throw this._err("Overflow");
@@ -80,6 +92,13 @@ export class BSDecoder {
         let bytes = this.read(len);
         while (len--) val = (val << 8n) | BigInt(bytes[len]);
         return val <= Number.MAX_SAFE_INTEGER ? Number(val) : val;
+    }
+    _wrap(obj) {
+        const t = new Uint8Array(this.buf.length + 2);
+        t[0] = obj ? BS_OBJ_OPEN : BS_ARR_OPEN;
+        t.set(this.buf, 1);
+        t[t.length - 1] = obj ? BS_OBJ_CLOSE : BS_ARR_CLOSE;
+        this.buf = t;
     }
     _ext(hdr) {
         return BS_GET_LSB(hdr) | ((hdr & BS_EXT_FLAG) ? (this.readB() << BS_EXT_BITS) : 0);
@@ -144,12 +163,10 @@ export class BSDecoder {
             case BS_BOOL:
                 return !!(header & 1);
 
-            case BS_FLOAT:
-                if (header & BS_FLOAT_ZERO) return 0.0;
-                else {
-                    const b = this.read(BS_FLOAT_SIZE);
-                    return new DataView(b.buffer, b.byteOffset, BS_FLOAT_SIZE).getFloat32(0, true);
-                }
+            case BS_FLOAT: {
+                const b = this.read(BS_FLOAT_SIZE);
+                return new DataView(b.buffer, b.byteOffset, BS_FLOAT_SIZE).getFloat32(0, true);
+            }
 
             case BS_BIN:
                 return this.read(this.readInt(BS_GET_BIN_LEN(header))).slice();
@@ -188,9 +205,9 @@ export class BSEncoder {
         let a = this.arr;
 
         if (Array.isArray(val)) {
-            a.push(BS_SUBT | BS_CONT | BS_CONT_ARR | BS_CONT_OPEN);
+            a.push(BS_ARR_OPEN);
             val.forEach(v => this.encode(v));
-            a.push(BS_SUBT | BS_CONT | BS_CONT_ARR | BS_CONT_CLOSE);
+            a.push(BS_ARR_CLOSE);
         } else {
             switch (typeof val) {
                 case 'object':
@@ -202,12 +219,12 @@ export class BSEncoder {
                         a.push(...lenb);
                         a.push(...val);
                     } else {
-                        a.push(BS_SUBT | BS_CONT | BS_CONT_OBJ | BS_CONT_OPEN);
+                        a.push(BS_OBJ_OPEN);
                         for (let key in val) {
                             this.encode(key);
                             this.encode(val[key]);
                         }
-                        a.push(BS_SUBT | BS_CONT | BS_CONT_OBJ | BS_CONT_CLOSE);
+                        a.push(BS_OBJ_CLOSE);
                     }
                     break;
 
