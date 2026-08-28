@@ -43,6 +43,13 @@ const BS_OBJ_CLOSE = BS_SUBT | BS_CONT | BS_CONT_OBJ | BS_CONT_CLOSE;
 
 // subtype float
 const BS_FLOAT_SIZE = 4;
+const BS_FLOAT_PRECISION = 7;
+
+class BSFloat32 extends Number {
+    constructor(value) {
+        super(Number(value.toPrecision(BS_FLOAT_PRECISION)));
+    }
+}
 
 // subtype bin
 const BS_GET_BIN_LEN = x => x & 0b111;
@@ -51,6 +58,7 @@ const BS_GET_BIN_LEN = x => x & 0b111;
 export class BSDecoder {
     offset = 0;
     cont = 'root';
+    fmeta = false;
     tdec = new TextDecoder();
 
     constructor(buf, codes) {
@@ -66,11 +74,13 @@ export class BSDecoder {
     }
 
     /**
+     * @param {boolean} floatMeta Add `__float` metadata for Float object fields
      * @returns {Object}
      */
-    decode() {
+    decode(floatMeta = false) {
         if (!(this.buf instanceof Uint8Array) || !this.buf.length) return undefined;
 
+        this.fmeta = floatMeta;
         let res = this._decode();
         if (this.offset != this.buf.length) throw this._err("Broken packet");
         return res;
@@ -132,12 +142,18 @@ export class BSDecoder {
                         if (this._close(res, isObj)) return cont;
 
                         if (isObj) {
+                            let key = String(res);
                             let val = this._decode();
                             if (this._close(val, isObj)) throw this._err("Missed value");
 
-                            cont[String(res)] = val;
+                            if (val instanceof BSFloat32) {
+                                cont[key] = val.valueOf();
+                                if (this.fmeta) cont[key + '__float'] = true;
+                            } else {
+                                cont[key] = val;
+                            }
                         } else {
-                            cont.push(res);
+                            cont.push(res instanceof BSFloat32 ? res.valueOf() : res);
                         }
                     }
                 }
@@ -165,7 +181,8 @@ export class BSDecoder {
 
             case BS_FLOAT: {
                 const b = this.read(BS_FLOAT_SIZE);
-                return new DataView(b.buffer, b.byteOffset, BS_FLOAT_SIZE).getFloat32(0, true);
+                const f = new DataView(b.buffer, b.byteOffset, BS_FLOAT_SIZE).getFloat32(0, true);
+                return new BSFloat32(f);
             }
 
             case BS_BIN:
@@ -228,8 +245,19 @@ export class BSEncoder {
                     }
                     break;
 
-                case 'bigint':
-                    val = Number(val);
+                case 'bigint': {
+                    let neg = val < 0n;
+                    if (neg) val = -val;
+
+                    if (!neg && val < BigInt(BS_INT_SMALL)) {
+                        a.push(BS_INT | BS_INT_SMALL | Number(val));
+                    } else {
+                        let bytes = this._int(val);
+                        a.push(BS_INT | (neg ? BS_INT_NEG : 0) | bytes.length);
+                        a.push(...bytes);
+                    }
+                    break;
+                }
 
                 case 'number':
                     if (Number.isInteger(val)) {
